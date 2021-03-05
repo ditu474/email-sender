@@ -22,7 +22,7 @@ func main() {
 	h := handlers.NewSendEmail(l)
 
 	sm := http.NewServeMux()
-	sm.Handle("/sendEmail", middlewares.CORSMiddleware(h))
+	sm.Handle("/sendEmail", middlewares.CORS(h))
 
 	s := http.Server{
 		Addr:         ":8000",
