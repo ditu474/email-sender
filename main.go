@@ -10,6 +10,7 @@ import (
 
 	"github.com/ditu474/email-sender/handlers"
 	"github.com/ditu474/email-sender/middlewares"
+	"github.com/ditu474/email-sender/validators"
 )
 
 var l *log.Logger
@@ -19,7 +20,8 @@ func init() {
 }
 
 func main() {
-	h := handlers.NewSendEmail()
+	v := &validators.RequiredField{FieldName: "name"}
+	h := handlers.NewSendEmail(l, v)
 
 	sm := http.NewServeMux()
 	sm.Handle("/sendEmail", middlewares.CORSMiddleware(h))
