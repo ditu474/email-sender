@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/smtp"
 
 	"github.com/ditu474/email-sender/models"
 	"github.com/ditu474/email-sender/validators"
@@ -50,9 +51,38 @@ func (s *SendEmail) postHandler(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte(fmt.Sprintf(`{"error":"%v"}`, err)))
 		return
 	}
-	s.sendEmail(rw, cf)
+	err = s.sendEmail(rw, cf)
+	if err != nil {
+		s.l.Printf("Error sending email: %v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(`{"error":"The mail could not be sent"}`))
+		return
+	}
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(`{"message":"Email sent"}`))
 }
 
-func (s *SendEmail) sendEmail(rw http.ResponseWriter, cf models.ContactForm) {
-	json.NewEncoder(rw).Encode(cf)
+func (s *SendEmail) sendEmail(rw http.ResponseWriter, cf models.ContactForm) error {
+	ha := &hostAuth{
+		"smtp.mailtrap.io",
+		"25",
+		"",
+		"",
+	}
+	auth := smtp.PlainAuth("", ha.username, ha.password, ha.smtpHost)
+	from := "danielrg0322@gmail.com"
+	to := []string{cf.Email}
+	msg := []byte(fmt.Sprintf("To: %s\r\n"+
+		"Subject: %s\r\n"+
+		"\r\n"+
+		"Hello %s,\r\n%s\r\n", cf.Email, cf.Subject, cf.Name, cf.Message))
+	err := smtp.SendMail(ha.smtpHost+":"+ha.smtPort, auth, from, to, msg)
+	return err
+}
+
+type hostAuth struct {
+	smtpHost string
+	smtPort  string
+	username string
+	password string
 }
