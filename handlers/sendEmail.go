@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -15,15 +13,13 @@ import (
 
 // SendEmail is the handler responsible for sending the email
 type SendEmail struct {
-	l         *log.Logger
-	validator validators.Validator
+	l *log.Logger
 }
 
 // NewSendEmail is the function responsible of creating a new SendEmail struct
-func NewSendEmail(l *log.Logger, validator validators.Validator) *SendEmail {
+func NewSendEmail(l *log.Logger) *SendEmail {
 	return &SendEmail{
-		l:         l,
-		validator: validator,
+		l: l,
 	}
 }
 
@@ -37,18 +33,6 @@ func (s *SendEmail) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SendEmail) postHandler(rw http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	//Save the request body
-	var bodyBytes []byte
-	if r.Body != nil {
-		bodyBytes, _ = ioutil.ReadAll(r.Body)
-	}
-
-	//Because we read the io.ReadCloser, the content has gone
-	//so we set it back
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-
 	cf := models.ContactForm{}
 	err := json.NewDecoder(r.Body).Decode(&cf)
 	if err != nil && err != io.EOF {
@@ -60,10 +44,7 @@ func (s *SendEmail) postHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Because we read the body again, we set it back for the validator
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-
-	if err := s.validator.Validation(r); err != nil {
+	if err := validators.ContactFormValidator(cf); err != nil {
 		s.l.Printf("Validation fails: %v\n", err)
 		rw.WriteHeader(http.StatusBadRequest)
 		rw.Write([]byte(fmt.Sprintf(`{"error":"%v"}`, err)))
@@ -73,5 +54,5 @@ func (s *SendEmail) postHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SendEmail) sendEmail(rw http.ResponseWriter, cf models.ContactForm) {
-	fmt.Fprint(rw, cf)
+	json.NewEncoder(rw).Encode(cf)
 }
